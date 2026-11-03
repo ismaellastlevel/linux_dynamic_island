@@ -161,7 +161,6 @@ class Island extends St.BoxLayout {
         this.add_child(this._eq);
         this._eqTimeline = new Clutter.Timeline({actor: this._eq, duration: 1000, repeat_count: -1});
         this._eqTimeline.connect('new-frame', () => this._stepEq(this._eqTimeline.get_delta() / 1000));
-        this._eqTimeline.start();
 
         this._controls = new St.BoxLayout({visible: false, y_align: Clutter.ActorAlign.CENTER});
         this._controls.add_child(this._button('previous', () => this._player?.previous()));
@@ -192,6 +191,8 @@ class Island extends St.BoxLayout {
         this.add_child(this._toastBox);
 
         this._place();
+        // Started once on the stage, a timeline whose actor has no stage refuses to start
+        this._eqTimeline.start();
         this._applyGeometry(this._compact());
 
         this.connect('notify::hover', () => this._onHover());

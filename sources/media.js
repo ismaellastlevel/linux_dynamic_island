@@ -40,6 +40,8 @@ export class MediaSource {
                 const [name, oldOwner, newOwner] = params.deepUnpack();
                 if (newOwner && !oldOwner)
                     this._addPlayer(name);
+                else if (oldOwner && !newOwner)
+                    this._removePlayer(name);
             });
     }
 
@@ -68,15 +70,21 @@ export class MediaSource {
                     this._current = player;
                 this._update();
             }),
-            player.connect('closed', () => {
-                this._players.delete(busName);
-                if (this._current === player) {
-                    const rest = [...this._players.values()].map(entry => entry.player);
-                    this._current = rest.find(p => p.status === 'Playing') ?? rest[0] ?? null;
-                }
-                this._update();
-            }),
         ];
         this._players.set(busName, {player, handlerIds});
+    }
+
+    // Player left the bus. Watched here because MprisPlayer no longer has a 'closed' signal (GNOME 50).
+    _removePlayer(busName) {
+        const entry = this._players?.get(busName);
+        if (!entry)
+            return;
+        entry.handlerIds.forEach(id => entry.player.disconnect(id));
+        this._players.delete(busName);
+        if (this._current === entry.player) {
+            const rest = [...this._players.values()].map(e => e.player);
+            this._current = rest.find(p => p.status === 'Playing') ?? rest[0] ?? null;
+        }
+        this._update();
     }
 }
