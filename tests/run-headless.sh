@@ -69,12 +69,19 @@ check "brightness shows on the island" "$ISLAND._toastIcon.gicon.get_names()[0] 
 check "brightness hides the shell OSD" "$NO_SHELL_OSD"
 
 # Music
-python3 -I -W ignore "$HERE/mock_mpris.py" 'Test Song' 'Test Artist' &
+WAYLAND_DISPLAY=di-test python3 -I -W ignore "$HERE/mock_mpris.py" 'Test Song' 'Test Artist' --window &
 MOCK_PID=$!
 sleep 3
 screenshot music
 check "music shows on the island" "$ISLAND._hasMusic && $ISLAND._title.text === 'Test Song'"
 check "visualizer animates" "$ISLAND._eqTimeline.is_playing()"
+# Like Chrome, the mock can't raise itself (no DesktopEntry, CanRaise false)
+FOCUS="global.display.focus_window?.get_title()"
+ev "Main.activateWindow(global.display.list_all_windows().find(w => w.get_title() === 'Other tab - Mock Browser'))" >/dev/null
+sleep 0.5
+check "another tab has the focus" "$FOCUS === 'Other tab - Mock Browser'"
+ev "$ISLAND._focusPlayer()" >/dev/null; sleep 0.5
+check "click focuses the window playing the track" "$FOCUS === 'Test Song - Mock Browser'"
 kill $MOCK_PID; MOCK_PID=; sleep 1
 check "player quit clears the island" "!$ISLAND._hasMusic && $ISLAND._player === null"
 

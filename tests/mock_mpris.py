@@ -1,9 +1,11 @@
 """Minimal MPRIS player on the session bus, so the island has something to show.
 
-Usage: python3 mock_mpris.py "Track title" "Artist"
+Usage: python3 mock_mpris.py "Track title" "Artist" [--window]
+--window also opens two windows like a browser: the track's tab and another tab.
 """
 import sys
 
+import gi
 from gi.repository import Gio, GLib
 
 TITLE, ARTIST = sys.argv[1], sys.argv[2]
@@ -55,4 +57,11 @@ def on_bus(connection, _name):
 
 Gio.bus_own_name(Gio.BusType.SESSION, 'org.mpris.MediaPlayer2.mock',
                  Gio.BusNameOwnerFlags.NONE, on_bus, None, None)
+if '--window' in sys.argv:
+    gi.require_version('Gtk', '4.0')
+    from gi.repository import Gtk
+    Gtk.init()
+    windows = [Gtk.Window(title=t) for t in (f'{TITLE} - Mock Browser', 'Other tab - Mock Browser')]
+    for w in windows:
+        w.present()
 GLib.MainLoop().run()

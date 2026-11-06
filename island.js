@@ -4,6 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -354,8 +355,33 @@ class Island extends St.BoxLayout {
             this._setExpanded(true);
             return Clutter.EVENT_STOP;
         }
-        this._player?.raise();
+        this._focusPlayer();
         return Clutter.EVENT_STOP;
+    }
+
+    // Browsers can't raise themselves over MPRIS (Chrome: no DesktopEntry, CanRaise false), so the window is
+    // found from the player's process, preferring the one whose title shows the track (the tab playing it)
+    _focusPlayer() {
+        const player = this._player;
+        if (!player)
+            return;
+        Gio.DBus.session.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus',
+            'GetConnectionUnixProcessID', new GLib.Variant('(s)', [player._busName]), null,
+            Gio.DBusCallFlags.NONE, -1, null, (bus, result) => {
+                try {
+                    const [pid] = bus.call_finish(result).deepUnpack();
+                    const windows = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
+                        .filter(w => w.get_pid() === pid);
+                    const title = player.trackTitle;
+                    const win = windows.find(w => title && w.get_title()?.includes(title)) ?? windows[0];
+                    if (win)
+                        Main.activateWindow(win);
+                    else
+                        player.raise();
+                } catch (e) {
+                    console.warn(`Dynamic Island: cannot focus the player: ${e}`);
+                }
+            });
     }
 
     _button(name, callback) {
